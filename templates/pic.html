@@ -2,7 +2,7 @@
  * @Author: Headmaster1615  e-mail:hm-218@qq.com
  * @Date: 2023-05-15 11:55:24
  * @LastEditors: Headmaster1615(Mac)  e-mail:hm-218@qq.com
- * @LastEditTime: 2023-06-09 09:28:51
+ * @LastEditTime: 2023-10-13 11:06:36
  * @FilePath: \个人服务器\templates\pic.html
  * @Description: 
  * 
@@ -158,7 +158,6 @@
 </head>
 
 <body>
-    <h3>高清图片右键保存，拖动滑动条调节图片大小，推荐点击评价按钮，站长会对图片做出调整</h3>
     <button onclick="location.href='/Home';">回到首页</button>
     <button onclick="previous()">上一张</button>
     <button onclick="next()">下一张</button>
@@ -171,6 +170,7 @@
     <button id="Button1" onclick="sendRequest('1')" style="display:inline-block;">👎</button>
     <button id="Button2" onclick="sendRequest('2')" style="display:inline-block;">分类错了</button>
     <button id="Button3" class="button-red" onclick="download()" style="display:inline-block;">下载</button>
+    <button id="Button4" onclick="help()" style="display:inline-block;">帮助</button>
     <p id="myImageText">1/1742</p>
     <div id="floating-box">
         <p id="message"></p>
@@ -194,6 +194,11 @@
         const slider = document.querySelector("#zoom-slider");
         const image = document.querySelector(".image-container img");
 
+        help();
+
+        function help(){
+            alert("欢迎使用!左右方向键可切换图片\n拖动滑动条或上下键可以调节图片大小\n推荐点击评价按钮，站长会对图片做出调整。");
+        }
         // 设置滑块当前值（即初始值）
         let sliderValue = slider.value;
 
@@ -257,6 +262,27 @@
             }
         }
 
+        document.addEventListener('keydown', function(event) {
+            if(event.keyCode == 37) {
+                // 左箭头键被按下
+                previous();
+            }
+            else if(event.keyCode == 39) {
+                // 右箭头键被按下
+                next();
+            }
+            else if(event.keyCode == 38) {
+                // 上键
+                slider.value = parseInt(slider.value) + 10;
+                image.style.transform = `scale(${slider.value / 100})`;
+            }
+            else if(event.keyCode == 40) {
+                // 下键
+                slider.value = parseInt(slider.value) - 10;
+                image.style.transform = `scale(${slider.value / 100})`;
+            }
+        });
+
         function previous() {
             if (currentImageIndex === 0) {
                 currentImageIndex = images.length - 1;
@@ -278,28 +304,42 @@
         }
 
 
-        function updateImage() {
-            var imgElement = document.querySelector("img");
-            var txtElement = document.querySelector("#myImageText");
+        function preloadImages(imageUrls) {
+    imageUrls.forEach(function(url) {
+        var img = new Image();
+        img.src = url;
+    });
+}
 
-            imgElement.setAttribute("src","/pic_src/" + images[currentImageIndex]);
-            showMessage("加载中,不要重复点击...", 0);
-            // 监听图片加载事件
-            imgElement.addEventListener('load', function() {
-            // 图片加载完成后执行以下代码
-            document.getElementById("floating-box").style.display = 'none';
-            imgElement.setAttribute("alt", (currentImageIndex + 1)+"/"+ (images.length+1));
-            txtElement.textContent = (currentImageIndex + 1)+"/"+ (images.length+1);
-            document.getElementById("Button0").innerHTML = '👍';
-            document.getElementById("Button1").innerHTML = '👎';
-            document.getElementById("Button2").innerHTML = '分类错了';
-            document.getElementById("Button3").innerHTML = '下载'+this.naturalWidth+'X'+this.naturalHeight;
-            });
-            // 监听图片加载失败事件,未登录时跳转到登录页面
-            imgElement.addEventListener('error', function() {
-                window.location.href ="/pic_src/" + images[currentImageIndex];
-            });
-        }
+function updateImage() {
+    var imgElement = document.querySelector("img");
+    var txtElement = document.querySelector("#myImageText");
+
+    imgElement.setAttribute("src","/pic_src/" + images[currentImageIndex]);
+    showMessage("加载中,不要重复点击...", 0);
+
+    // 预加载后面的三张图片
+    var nextImages = images.slice(currentImageIndex + 1, currentImageIndex + 4);
+    preloadImages(nextImages.map(function(img) { return "/pic_src/" + img; }));
+
+    // 监听图片加载事件
+    imgElement.addEventListener('load', function() {
+        // 图片加载完成后执行以下代码
+        document.getElementById("floating-box").style.display = 'none';
+        imgElement.setAttribute("alt", (currentImageIndex + 1)+"/"+ (images.length+1));
+        txtElement.textContent = (currentImageIndex + 1)+"/"+ (images.length+1);
+        document.getElementById("Button0").innerHTML = '👍';
+        document.getElementById("Button1").innerHTML = '👎';
+        document.getElementById("Button2").innerHTML = '分类错了';
+        document.getElementById("Button3").innerHTML = '下载'+this.naturalWidth+'X'+this.naturalHeight;
+    });
+
+    // 监听图片加载失败事件,未登录时跳转到登录页面
+    imgElement.addEventListener('error', function() {
+        window.location.href ="/pic_src/" + images[currentImageIndex];
+    });
+}
+
 
         function download() {
             var link = document.createElement('a');
