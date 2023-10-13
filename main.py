@@ -8,6 +8,8 @@ import os
 import glob
 import json
 import random
+import socket
+from urllib.parse import unquote
 
 app = Flask(__name__)
 # 强制使用 HTTPS
@@ -107,20 +109,29 @@ def video():
     if request.method == 'GET':
         video_urls = [r'static/example.mp4']
         if session.get('username') in USERS:
-            with app.app_context():
-                for file_path in glob.glob('D:/HTML/Zzz/double/*.mp4'):
-                    video_url = url_for('static', filename='video/' + os.path.basename(file_path))
+            with app.app_context():                
+                for file_path in glob.glob(os.path.join('D:/HTML/Zzz/', '**/*.mp4'), recursive=True):
+                    # 获取文件的相对路径（即从“Zzz”文件夹之后的部分）
+                    relative_path = os.path.relpath(file_path, 'D:/HTML/Zzz/')
+                    
+                    # 创建视频的URL
+                    video_url = url_for('static', filename=os.path.join('video', relative_path))
+                    
+                    # 将视频URL添加到列表中
                     video_urls.append(video_url)
+                
         return render_template("video.html", video_urls=video_urls)
     # 预留上传视频功能
     elif request.method == 'POST':
         return render_template("video.html")
 
 # 单独处理高级视频
-@app.route('/static/video/<string:subpath>')
+@app.route('/static/video<string:subpath>')
 def video_handler(subpath):
-    if session.get('username') in USERS:
-        path = r'D:\HTML\Zzz\double\\'+subpath
+    if session.get('username') in USERS and session['username'] == 'Headmaster':
+
+        decoded_url = unquote(subpath)
+        path = r'D:\HTML\Zzz\\'+ decoded_url
         #return send_file(r'P:/《皇后乐队蒙特利尔现场演唱会》Queen.Rock.Montreal.And.Live.Aid.2007.720p.BluRay.x264-BDLiVE.mkv', as_attachment=False)
         #return send_file(r'P:/阿凡达2.mkv', as_attachment=False)
         return send_file(path, as_attachment=False)
@@ -190,4 +201,4 @@ def upload():
 
 if __name__ == '__main__':
     context = ('data\pem\cert.pem', 'data\pem\key.pem')
-    app.run(host='172.20.35.15', port=443, ssl_context=context)
+    app.run(host=socket.getaddrinfo('wzh1615.top', None, socket.AF_INET6)[0][4][0], port=443, ssl_context=context)
