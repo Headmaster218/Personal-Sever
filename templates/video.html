@@ -153,6 +153,7 @@
     <button id="Button0" onclick="sendRequest('0')" style="display:inline-block;">👍</button>
     <button id="Button1" onclick="sendRequest('1')" style="display:inline-block;" color="red">👎</button>
     <button id="Button2" onclick="sendRequest('2')" style="display:inline-block;" color="red" ;>分类错了</button>
+    <select id="videoSelect" onchange="videoChange()"></select>
     <p id="myvideoText">1/?点一下 下一个 就知道了</p>
     <div id="floating-box">
         <p id="message"></p>
@@ -194,6 +195,28 @@
         }, duration);
     }
     }
+
+
+    function populateSelect(videos) {
+  var select = document.getElementById('videoSelect');
+  videos.forEach(function(video, index) {
+    var option = document.createElement('option');
+    option.value = video;
+    option.textContent = decodeURIComponent(videos[index]);
+    select.appendChild(option);
+  });
+}
+
+function videoChange() {
+    currentvideoIndex = document.getElementById('videoSelect').selectedIndex;
+    updatevideo();
+}
+
+// Initialize the dropdown menu with videos when the page loads
+window.onload = function() {
+  populateSelect(videos);
+  document.querySelector("#myvideoText").textContent = (currentvideoIndex + 1)+"/"+ (videos.length);
+};
 
     function sendRequest(btnValue) {
         var xhr = new XMLHttpRequest();

@@ -1,5 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_file
+from flask import stream_with_context,send_from_directory,Response,Flask, render_template, jsonify,request, redirect, url_for, session, send_file
 from flask_session import Session
+from werkzeug.utils import safe_join
 from flask_sslify import SSLify
 from datetime import timedelta
 import logging
@@ -10,6 +11,8 @@ import json
 import random
 import socket
 from urllib.parse import unquote
+import subprocess
+import shlex
 
 app = Flask(__name__)
 # 强制使用 HTTPS
@@ -108,7 +111,7 @@ def Home():
 def video():
     if request.method == 'GET':
         video_urls = [r'static/example.mp4']
-        if session.get('username') in USERS:
+        if session.get('username') in USERS and session['username'] == 'Headmaster':
             with app.app_context():                
                 for file_path in glob.glob(os.path.join('D:/HTML/Zzz/', '**/*.mp4'), recursive=True):
                     # 获取文件的相对路径（即从“Zzz”文件夹之后的部分）
@@ -159,10 +162,20 @@ def pic():
 def pic_handler(subpath):
     if subpath[:3] == "NSF":
         if session.get('username') in USERS:
-           return send_file(r'D:/HTML/'+subpath, as_attachment= True)
+            directory = r'D:/HTML'
+            # 使用 safe_join 来确保路径安全
+            path = safe_join(directory, subpath)
+            # 检查路径是否在预期的目录中
+            if path and os.path.exists(path):
+                return send_file(path, as_attachment=True)
         else:
             return render_template('login.html')
-    return send_file(r'D:/HTML/'+subpath, as_attachment= True)
+    directory = r'D:/HTML'
+    # 使用 safe_join 来确保路径安全
+    path = safe_join(directory, subpath)
+    # 检查路径是否在预期的目录中
+    if path and os.path.exists(path):
+        return send_file(path, as_attachment=True)
 
 # 图片点赞路由
 @app.route("/like", methods=['POST'])
