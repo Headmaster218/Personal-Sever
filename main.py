@@ -13,6 +13,7 @@ import socket
 from urllib.parse import unquote
 import subprocess
 import shlex
+import word_sorter as ws
 
 app = Flask(__name__)
 # 强制使用 HTTPS
@@ -229,6 +230,85 @@ def upload():
     # Save uploaded file to disk
     file.save('D:/Programing/Code/个人服务器/upload/' + file.filename)
     return '上传成功'
+
+# 背单词页面路由
+@app.route("/word", methods=['GET'])
+def word():
+        return render_template("word.html")
+
+#开始背单词
+@app.route("/word/start", methods=['GET', 'POST'])
+def word_start():
+    user_name = session.get('username')
+    if not user_name:
+        return render_template('login.html')
+    data = request.json
+    text = data['text']
+    base_path = os.path.join('.', 'data', 'user word', user_name)
+    known_words_path = os.path.join(base_path, 'known_words.txt')
+    unknown_words_path = os.path.join(base_path, 'unknown_words.txt')
+    known_words = ws.load_word_set(known_words_path)
+    unknown_words = ws.load_word_set(unknown_words_path)
+    new_words = ws.process_text(text, known_words, unknown_words)
+    if session.get('known_words_path') == None:
+        session['known_words_path'] = known_words_path
+    if session.get('unknown_words_path') == None:
+        session['unknown_words_path'] = unknown_words_path
+
+    return jsonify({'new_words': list(new_words)})
+
+@app.route('/word/handle', methods=['POST'])
+def handle_word():
+    user_name = session.get('username')
+    if not user_name:
+        return jsonify({'error': 'User not logged in'}), 401
+    data = request.json
+    word = data.get('word')
+    recognized = data.get('recognized')
+
+    if recognized == 0:
+        # 未识别
+        ws.save_word(word, session.get('unknown_words_path'))
+    elif recognized == 1:
+        # 已识别
+        ws.save_word(word, session.get('known_words_path'))
+    elif recognized ==2:
+        means = ws.extract_meaning_from_baidu(word)
+        return jsonify({'success': 2, 'meaning': means})
+
+    # 假设处理成功
+    return jsonify({'success': 1})
+
+# 托福文章路由
+@app.route("/tofel/<path:subpath>", methods=['GET'])
+def toefl(subpath):
+    if subpath.startswith('reading'):
+        # 获取 '/static/TOP reading' 目录下的所有文件名
+        directory = os.path.join(app.static_folder, 'Tofel/reading')
+        try:
+            # 确保目录存在
+            files = os.listdir(directory)
+            # 返回文件名的列表
+            return jsonify(files)
+        except OSError as e:
+            # 如果目录不存在或发生其他错误
+            return jsonify({"error": str(e)}), 404
+    elif subpath.startswith('listening'):
+        # 获取 '/static/TOP listening' 目录下的所有文件名
+        directory = os.path.join(app.static_folder, 'Tofel/listening')
+        try:
+            # 确保目录存在
+            files = os.listdir(directory)
+            # 返回文件名的列表
+            return jsonify(files)
+        except OSError as e:
+            # 如果目录不存在或发生其他错误
+            return jsonify({"error": str(e)}), 404
+    elif subpath.startswith('article'):
+        filename = subpath[8:]
+        # 发送文件，假设文件存储在 'static/Tofel' 目录下
+        return send_from_directory('static/Tofel', filename)
+    
 
 
 if __name__ == '__main__':

@@ -12,3 +12,5 @@ flask.log
 data/
 
 flask.*
+
+wordnet/

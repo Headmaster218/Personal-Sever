@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校长背托福单词</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+    }
+
+    .sidebar {
+      width: 30%;
+      background-color: #f2f2f2;
+      padding: 20px;
+      height: 100vh;
+      /* Full height */
+    }
+
+    .content {
+      width: 60%;
+      height: 100vh;
+      /* Full height */
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dropdowns {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      /* 与文本框的间隔 */
+    }
+
+    select {
+
+      flex: 1;
+      /* 两个下拉框平分空间 */
+      margin-right: 10px;
+      /* 第一个下拉框的右边距 */
+      padding: 5px;
+      font-size: 1em;
+      /* 字体大小 */
+      border: 1px solid #ccc;
+      /* 边框样式 */
+      border-radius: 5px;
+      /* 边框圆角 */
+    }
+
+    select:last-child {
+      margin-right: 0;
+      /* 最后一个下拉框没有右边距 */
+    }
+
+    textarea {
+      width: 100%;
+      /* 文本框宽度填满容器 */
+      height: 60vh;
+      /* 设置一个固定的高度 */
+      padding: 10px;
+      /* 文本框内填充 */
+      border: 1px solid #ccc;
+      /* 文本框边框样式 */
+      border-radius: 5px;
+      /* 文本框边框圆角 */
+      font-size: 1em;
+      /* 文本框内的字体大小 */
+      resize: none;
+      /* 禁止调整大小 */
+    }
+
+
+    .avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background-color: #ddd;
+      margin-bottom: 20px;
+    }
+
+    .word-display,
+    .definition-display {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #fff;
+    }
+
+    /* Buttons */
+    .btn-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      width: 180px;
+      margin: 10px;
+      padding: 12px 24px;
+      border-radius: 5px;
+      border: none;
+      color: #fff;
+      font-weight: bold;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .button-green {
+      background-color: #4CAF50;
+    }
+
+    .button-red {
+      background-color: #f44336ee;
+    }
+
+    .button-blue {
+      background-color: #008CBA;
+    }
+
+    .button-purple {
+      background-color: #673ab7;
+    }
+
+    .button-yellow {
+      background-color: #d1ca40;
+    }
+
+    .button-green:hover {
+      background-color: #3e8e41;
+    }
+
+    .button-yellow:hover {
+      background-color: #a59f2f;
+    }
+
+    .button-red:hover {
+      background-color: #a32424;
+    }
+
+    .button-blue:hover {
+      background-color: #006d87;
+    }
+
+    .button-purple:hover {
+      background-color: #5a2d8a;
+    }
+
+    .username,
+    .login-link {
+      font-size: 16px;
+      color: blue;
+      cursor: pointer;
+    }
+
+    .user-profile {
+      display: flex;
+      /* 使用Flexbox布局 */
+      align-items: center;
+      /* 垂直居中对齐 */
+      justify-content: start;
+      /* 水平开始对齐 */
+    }
+
+    .avatar img {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background-color: #ddd;
+      /* margin-right: 20px; */
+      /* 如果需要在头像和用户名之间添加间距 */
+    }
+
+    #user-info {
+      margin-left: 20px;
+      /* 在头像和用户名之间添加一些间距 */
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="sidebar">
+    <div class="user-profile">
+      <div class="avatar">
+        <img src="static/fight.jpg" alt="Avatar">
+      </div>
+      <div>
+        <center><span class='login-link' onclick="location.href='/Home'">前往主页</span></center>
+        <div id="user-info">
+          用户名
+        </div>
+      </div>
+    </div>
+
+    <div class="word-display">Word</div>
+    <div class="definition-display">释义显示框</div>
+    <center>
+      <button onclick=handleWord(1); class="button-green">认识 键盘左</button>
+      <button onclick=handleWord(0); class="button-red">不认识 右</button>
+      <button onclick=handleWord(2); class="button-yellow ">查询释义 下</button>
+    </center>
+  </div>
+
+  <div class="content">
+    <br>
+    <div class="dropdowns">
+      <select id="typeSelect">
+        <option value="" disabled selected>请选择文章类型</option>
+        <option value="listening">听力</option>
+        <option value="reading">阅读</option>
+        <option value="custom">自定义</option>
+      </select>
+
+      <select id="articleSelect">
+        <option value="" disabled selected>请选择章节</option>
+        <option value="article1">文章 1</option>
+        <option value="article2">文章 2</option>
+        <!-- Add more articles as needed -->
+      </select>
+    </div>
+
+    <textarea placeholder="在此输入自定义文章或显示选择的文章"></textarea>
+    <center> <button onclick="start_sorter()" class="button-blue">选择文章后，开始！</button> </center>
+  </div>
+</body>
+
+
+<script>
+  var username = "{{ session.get('username') or 'null' }}"; // 如果用户未登录，设置为JavaScript的null
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const typeSelect = document.getElementById('typeSelect');
+    const articleSelect = document.getElementById('articleSelect');
+    const textarea = document.querySelector('textarea');
+
+    // 假设这是从服务器获取的用户登录状态
+    var userInfoElement = document.getElementById('user-info');
+
+    if (username !== 'null') {
+      // 如果用户已登录，显示用户名
+      userInfoElement.innerHTML = `<span class="username">${username}</span>`;
+    } else {
+      // 如果用户未登录，显示登录链接
+      userInfoElement.innerHTML = `<span class="login-link" onclick="location.href='/'">点击登录</span>`;
+    }
+
+
+
+
+    // 监听类型选择的变化
+    typeSelect.addEventListener('change', function () {
+      if (this.value == "custom") {
+        articleSelect.innerHTML = '';
+        textarea.value = '请输入自己的文章，可以粘贴';
+        return;
+      }
+
+      // 创建并添加“请选择文章”选项
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = '请选择文章';
+      defaultOption.disabled = true; // 使选项不可选择
+      defaultOption.selected = true; // 默认选中此选项
+
+
+      fetch(`/tofel/${this.value}`)
+        .then(response => response.json())
+        .then(data => {
+          // 清空文章选择下拉框
+          articleSelect.innerHTML = '';
+          textarea.value = '请选择文章';
+          // 填充文章选择下拉框
+          data.forEach(article => {
+            const option = document.createElement('option');
+            option.value = article;
+            option.textContent = article;
+            articleSelect.appendChild(defaultOption);
+            articleSelect.appendChild(option);
+          });
+        })
+        .catch(error => console.error('Error:', error));
+    });
+
+    // 监听文章选择的变化
+    articleSelect.addEventListener('change', function () {
+      fetch(`/tofel/article/${typeSelect.value}/${this.value}`)
+        .then(response => response.text())
+        .then(data => {
+          // 更新文本框内容
+          textarea.value = data;
+        })
+        .catch(error => console.error('Error:', error));
+    });
+  });
+
+  let currentWordIndex = 0; // 当前单词的索引
+  let fullWords = []; // 存储从服务器获取的单词列表
+
+  function start_sorter() {
+    if (username == 'null') {
+      alert("请先登录");
+      return;
+    }
+    var text = document.querySelector('textarea').value;
+    // 发送 POST 请求到服务器
+    fetch('/word/start', {
+      method: 'POST', // 指定请求方法为 POST
+      headers: {
+        'Content-Type': 'application/json' // 设置请求头，告诉服务器消息主体是 JSON
+      },
+      body: JSON.stringify({ text: text }) // 将文本内容转换为 JSON 字符串
+    })
+      .then(response => response.json()) // 解析 JSON 格式的响应
+      .then(data => {
+        // 服务器返回的数据结构是 { new_words: [...] }
+        fullWords = data.new_words; // 注意这里要访问 data.new_words 而不是直接使用 data
+        if (fullWords.length > 0) {
+          displayNextWord();
+        } else {
+          alert("没有新单词。");
+        }
+      })
+
+      .catch(error => {
+        console.error('Error:', error);
+      });
+  }
+
+
+  // 显示下一个单词的函数
+  function displayNextWord() {
+    if (currentWordIndex < fullWords.length) {
+      const word = fullWords[currentWordIndex];
+      document.querySelector('.word-display').textContent = word;
+    } else {
+      document.querySelector('.word-display').textContent = "所有单词已分类完毕！";
+    }
+  }
+
+  document.addEventListener('keydown', function (event) {
+    if (event.keyCode == 37) {
+      // 左箭头键被按下
+      handleWord(1);
+    }
+    else if (event.keyCode == 39) {
+      // 右箭头键被按下
+      handleWord(0);
+    }
+    else if (event.keyCode == 40) {
+      // 下键
+      handleWord(2);
+    }
+  });
+
+  // 处理单词的函数，发送用户的认识或不认识的反馈到服务器
+  function handleWord(recognized) {
+    const word = fullWords[currentWordIndex];
+    document.querySelector('.definition-display').textContent = '此处将显示释义';
+    fetch('/word/handle', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ word: word, recognized: recognized })
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success == 1) {
+          // 服务器处理成功，移除当前单词，显示下一个单词
+          fullWords.splice(currentWordIndex, 1); // 移除当前单词
+          displayNextWord(); // 显示下一个单词
+        }
+        else if (data.success == 2) {
+          // 服务器处理成功，显示释义
+          document.querySelector('.definition-display').textContent = data.meaning;
+        }
+        else {
+
+          alert(data.success);
+        }
+
+      })
+      .catch(error => {
+        console.error('请求失败', error);
+      });
+  }
+
+
+</script>
+
+</html>
