@@ -37,6 +37,10 @@ app.config['SESSION_TYPE'] = 'filesystem'  # Session 存储方式
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30) # Session 的有效期
 Session(app)
 
+with open('data/VIP_USERS.json', 'r') as f:
+    file_data = f.read()
+    VIP_USERS = json.loads(file_data)
+
 with open('data/USERS.json', 'r') as f:
     file_data = f.read()
     USERS = json.loads(file_data)
@@ -62,7 +66,7 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        if username in USERS and USERS[username] == password:
+        if (username in VIP_USERS and VIP_USERS[username] == password) or (username in USERS and USERS[username] == password ):
             if(session.get('wrong_times') == None or session['wrong_times'] < 10):
                 # 验证通过，创建 Session
                 session['username'] = username
@@ -78,11 +82,24 @@ def login():
                 error_msg += f"\n行为已记录，您的ip: {request.remote_addr}"
             session['IP'] = request.remote_addr  # 不管验证是否成功，都应该记录用户IP
             return render_template('login.html', error_msg=error_msg)
-    # elif request.method==('GET'):
-    # 如果已登录，直接跳转到主页
-    if session.get('username') in USERS:
+    if session.get('username') in VIP_USERS or session.get('username') in USERS :
         return redirect(url_for('Home'))
     return render_template('login.html')
+
+#注册路由
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'GET':
+        return render_template('register.html')
+    elif request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password1']
+        USERS[username] = password
+        with open('data/USERS.json', 'w') as f:
+            f.write(json.dumps(USERS))
+        return jsonify({'success': 1})
+
+
 
 # 图标路由
 @app.route('/favicon.ico')
@@ -100,8 +117,10 @@ def logout():
 @app.route('/Home')
 def Home():
     # 如果未登录，返回登录页
-    if session.get('username') in USERS:
+    if session.get('username') in VIP_USERS:
         username=1
+    elif session.get('username') in USERS:
+        username=2
     else:
         username=0
     return render_template('Home.html', username=username)
@@ -111,7 +130,7 @@ def Home():
 def video():
     if request.method == 'GET':
         video_urls = [r'static/example.mp4']
-        if session.get('username') in USERS and session['username'] == 'Headmaster':
+        if session.get('username') in VIP_USERS and session['username'] == 'Headmaster':
             with app.app_context():                
                 for file_path in glob.glob(os.path.join('D:/HTML/Zzz/', '**/*.mp4'), recursive=True):
                     # 获取文件的相对路径（即从“Zzz”文件夹之后的部分）
@@ -131,7 +150,7 @@ def video():
 # 单独处理高级视频
 @app.route('/static/video<string:subpath>')
 def video_handler(subpath):
-    if session.get('username') in USERS and session['username'] == 'Headmaster':
+    if session.get('username') in VIP_USERS and session['username'] == 'Headmaster':
 
         decoded_url = unquote(subpath)
         path = r'D:\HTML\Zzz\\'+ decoded_url
@@ -148,7 +167,7 @@ def pic():
         username = 0
         random.shuffle(Spic_urls)
         Npic_image_urls = Spic_urls
-        if session.get('username') in USERS:
+        if session.get('username') in VIP_USERS:
             username = 1
             random.shuffle(Npic_urls)
             Npic_image_urls = Npic_urls
@@ -161,7 +180,7 @@ def pic():
 @app.route('/pic_src/<path:subpath>')
 def pic_handler(subpath):
     if subpath[:3] == "NSF":
-        if session.get('username') in USERS:
+        if session.get('username') in VIP_USERS:
             directory = r'D:/HTML'
             # 使用 safe_join 来确保路径安全
             path = safe_join(directory, subpath)

@@ -122,10 +122,12 @@
     <div class="container">
         {% if username == 1 %}
         <h1>已获取完整访问权限，您是超级用户</h1>
+        {% elif username == 2 %}
+        <h1>已获取部分访问权限，您是普通用户</h1>
         {% else %}
         <h2>您好，访客！</h2>
         {% endif %}
-        <h1>此站全免流量，请放心使用</h1>
+        <h1>此站校园网内全免流量，请放心使用</h1>
         <div class="btn-condainer">
             <button class="button-green" onclick="location.href='/';">我要登录</button>
             <button class="button-red" onclick="log_out()">退出登录</button>
@@ -133,6 +135,7 @@
 
         <div class="btn-container">
             <button class="button-purple" onclick="location.href='/pic'">图片查看器</button>
+            <button class="button-green" onclick="location.href='/word'">背单词神器</button>
             <button class="button-blue" onclick="location.href='/upload'">上传文件给卓航</button>
             <button class="button-yellow" onclick="location.href='/video'">视频播放器</button>
         </div>
