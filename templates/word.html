@@ -17,13 +17,13 @@
       width: 30%;
       background-color: #f2f2f2;
       padding: 20px;
-      height: 100vh;
+      height: 90vh;
       /* Full height */
     }
 
     .content {
       width: 60%;
-      height: 100vh;
+      height: 90vh;
       /* Full height */
       display: flex;
       flex-direction: column;
@@ -189,10 +189,12 @@
         <img src="static/fight.jpg" alt="Avatar">
       </div>
       <div>
-        <center><span class='login-link' onclick="location.href='/Home'">前往主页</span></center>
+        <center><span class='login-link' onclick="location.href='/Home'">前往主页</span>
+          <div id = "remain-number">还剩下0个单词</div>
         <div id="user-info">
           用户名
         </div>
+      </center>
       </div>
     </div>
 
@@ -242,7 +244,7 @@
 
     if (username !== 'null') {
       // 如果用户已登录，显示用户名
-      userInfoElement.innerHTML = `<span class="username">${username}</span>`;
+      userInfoElement.innerHTML = `<div class="username">${username},加油！</div>`;
     } else {
       // 如果用户未登录，显示登录链接
       userInfoElement.innerHTML = `<span class="login-link" onclick="location.href='/'">点击登录</span>`;
@@ -339,6 +341,7 @@
     } else {
       document.querySelector('.word-display').textContent = "所有单词已分类完毕！";
     }
+    document.getElementById('remain-number').innerHTML = "还剩下" + fullWords.length + "个单词";
   }
 
   document.addEventListener('keydown', function (event) {

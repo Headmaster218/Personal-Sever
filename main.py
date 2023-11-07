@@ -1,4 +1,4 @@
-from flask import stream_with_context,send_from_directory,Response,Flask, render_template, jsonify,request, redirect, url_for, session, send_file
+from flask import stream_with_context,send_from_directory,abort,Response,Flask, render_template, jsonify,request, redirect, url_for, session, send_file
 from flask_session import Session
 from werkzeug.utils import safe_join
 from flask_sslify import SSLify
@@ -59,6 +59,11 @@ Npic_dict_op_times = 0
 
 Spic_urls = list(pic_imgs_dict.keys())
 Npic_urls = list(Npic_imgs_dict.keys())
+
+#爬虫
+@app.route('/robots.txt', methods = ['GET'])
+def anti_bot():
+    return abort(403)
 
 # 登录路由
 @app.route('/', methods=['GET', 'POST'])

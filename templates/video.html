@@ -2,7 +2,7 @@
  * @Author: Headmaster1615  e-mail:hm-218@qq.com
  * @Date: 2023-05-31 19:43:12
  * @LastEditors: Headmaster1615(Mac)  e-mail:hm-218@qq.com
- * @LastEditTime: 2023-06-09 11:09:50
+ * @LastEditTime: 2023-11-07 10:21:00
  * @FilePath: \个人服务器\templates\video.html
  * @Description: 
  * 
@@ -126,6 +126,12 @@
         button:hover {
             background-color: #3e8e41;
         }
+        .button-red {
+            background-color: #f44336ee;
+        }
+        .button-red:hover {
+            background-color: #f44336;
+        }
 
         #floating-box {
             position: fixed;
@@ -153,6 +159,7 @@
     <button id="Button0" onclick="sendRequest('0')" style="display:inline-block;">👍</button>
     <button id="Button1" onclick="sendRequest('1')" style="display:inline-block;" color="red">👎</button>
     <button id="Button2" onclick="sendRequest('2')" style="display:inline-block;" color="red" ;>分类错了</button>
+    <button id="Button3" class="button-red" onclick="download()" style="display:inline-block;">下载</button>
     <select id="videoSelect" onchange="videoChange()"></select>
     <p id="myvideoText">1/?点一下 下一个 就知道了</p>
     <div id="floating-box">
@@ -160,12 +167,11 @@
     </div>
     <!-- 视频容器 -->
     <div class="video-container">
-        <video controls preload="metadata">
-            <source src="static/example.mp4" type="video/mp4">
-            <source src="static/example.mkv" type="video/x-matroska">
+        <video id="videoPlayer" controls preload="metadata">
+            <!-- 这里的source标签将通过JavaScript动态更新 -->
             <p>Your browser doesn't support HTML5 video. Here is a <a href="static/example.mp4">link to the video</a> instead.</p>
         </video>
-    </div>
+    </div>    
 </body>
 
 <script>
@@ -255,27 +261,42 @@ window.onload = function() {
 
 
     function updatevideo() {
-        var videoElement = document.querySelector("video");
-        var txtElement = document.querySelector("#myvideoText");
+    var videoElement = document.getElementById("videoPlayer");
+    var txtElement = document.getElementById("myvideoText");
 
-        videoElement.setAttribute("src", videos[currentvideoIndex]);
-        var str = decodeURIComponent(videos[currentvideoIndex]);
-        var index = str.lastIndexOf("/");
-        txtElement.textContent = (currentvideoIndex + 1)+"/"+ (videos.length);
-        document.getElementById("Button0").innerHTML = '👍';
-        document.getElementById("Button1").innerHTML = '👎';
-        document.getElementById("Button2").innerHTML = '分类错了';
-        // 监听图片加载失败事件,未登录时跳转到登录页面
-        videoElement.addEventListener('error', function() 
-        {
-            if (typeof video.canPlayType === 'function' && video.canPlayType('application/vnd.apple.mpegurl')) {
-                if(confirm("您似乎未登录，要跳转登录界面吗？"))
-                    location.href='/';
-            } else {
-                alert('您的浏览器不支持播放此视频，请更换浏览器或者升级浏览器版本');
-            }
-        });
-    }
+    // 假设videos是一个包含视频URL的数组
+    var videoSrc = videos[currentvideoIndex];
+    videoElement.src = videoSrc; // 更新视频源
+    txtElement.textContent = (currentvideoIndex + 1) + "/" + videos.length;
+
+    // 更新按钮文本
+    document.getElementById("Button0").innerHTML = '👍';
+    document.getElementById("Button1").innerHTML = '👎';
+    document.getElementById("Button2").innerHTML = '分类错了';
+
+    // 监听视频加载失败事件
+    videoElement.addEventListener('error', function() {
+        if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+            if(confirm("视频无法加载，是否跳转到登录界面？"))
+                window.location.href = '/login'; // 确保这是正确的登录URL
+        } else {
+            alert('您的浏览器不支持播放此视频，请更换浏览器或者升级浏览器版本');
+        }
+    });
+
+    videoElement.load(); // 重要：调用load()来加载新视频
+}
+
+
+        function download() {
+    var link = document.createElement('a');
+    link.download = videos[currentvideoIndex].split('/')[2]; // 设置下载文件的名称
+    link.href = videos[currentvideoIndex]; // 这里的路径应该是服务器端存储文件的地址
+    document.body.appendChild(link);
+    link.click(); // 模拟用户点击链接以触发下载
+    document.body.removeChild(link); // 移除链接节点
+}
+
 
 </script>
 

@@ -2,7 +2,7 @@
  * @Author: Headmaster1615  e-mail:hm-218@qq.com
  * @Date: 2023-05-15 11:55:24
  * @LastEditors: Headmaster1615(Mac)  e-mail:hm-218@qq.com
- * @LastEditTime: 2023-10-13 11:06:36
+ * @LastEditTime: 2023-11-07 10:19:07
  * @FilePath: \个人服务器\templates\pic.html
  * @Description: 
  * 
@@ -303,6 +303,11 @@
             updateImage();
         }
 
+
+        window.onload = function() {
+            preloadImages(images.slice(1, 4).map(function(img) { return "/pic_src/" + img; }));
+            document.getElementById("Button3").innerHTML = '下载'+document.querySelector("img").naturalWidth+'X'+document.querySelector("img").naturalHeight;
+        };
 
         function preloadImages(imageUrls) {
     imageUrls.forEach(function(url) {
