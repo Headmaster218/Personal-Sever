@@ -35,7 +35,7 @@ app.logger.addHandler(handler)
 app.config['STATIC_FOLDER'] = os.path.join(os.getcwd(), 'static')
 app.config['SECRET_KEY'] = 'asdb2[[/*$9)(/XSwncuwah#(&bcelu'  # Session 密钥
 app.config['SESSION_TYPE'] = 'filesystem'  # Session 存储方式
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30) # Session 的有效期
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24 ) # Session 的有效期
 Session(app)
 
 with open('data/VIP_USERS.json', 'r') as f:
@@ -278,7 +278,7 @@ def handle_word():
         # 已识别
         ws.save_word(word, session.get('known_words_path'))
     elif recognized ==2:
-        means = ws.extract_meaning_from_baidu(word)
+        means = ws.extract_meaning_from_kmf(word)
         return jsonify({'success': 2, 'meaning': means})
 
     # 假设处理成功

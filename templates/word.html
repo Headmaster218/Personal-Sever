@@ -225,7 +225,13 @@
       </select>
     </div>
 
-    <textarea placeholder="在此输入自定义文章或显示选择的文章"></textarea>
+    <!-- <textarea placeholder="在此输入自定义文章或显示选择的文章"></textarea> -->
+    <div id="textWrapper" style="position: relative;">
+      <div id="textDisplay" style="white-space: pre-wrap; word-wrap: break-word; padding: 8px; overflow: hidden; position: absolute; z-index: 1;"></div>
+      <textarea id="textInput" style="white-space: pre-wrap; word-wrap: break-word; padding: 8px; background: transparent; color: transparent; position: relative; z-index: 2;"></textarea>
+  </div>
+  
+  
     <center> <button onclick="start_sorter()" class="button-blue">选择文章后，开始！</button> </center>
   </div>
 </body>
@@ -332,14 +338,32 @@
       });
   }
 
+  function highlightWord(word) {
+    var textInput = document.getElementById('textInput');
+    var textDisplay = document.getElementById('textDisplay');
+
+    // 转义特殊字符以避免 XSS 攻击
+    var escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // 使用正则表达式替换所有匹配的单词
+    var highlightedText = textInput.value.replace(new RegExp(escapedWord, 'gi'), function(match) {
+        return '<span style="background-color: yellow;">' + match + '</span>';
+    });
+
+    // 更新显示区域的 HTML
+    textDisplay.innerHTML = highlightedText;
+}
+
 
   // 显示下一个单词的函数
   function displayNextWord() {
     if (currentWordIndex < fullWords.length) {
       const word = fullWords[currentWordIndex];
       document.querySelector('.word-display').textContent = word;
+      highlightWord(word);
     } else {
       document.querySelector('.word-display').textContent = "所有单词已分类完毕！";
+      document.getElementById('textDisplay').innerHTML = '';
     }
     document.getElementById('remain-number').innerHTML = "还剩下" + fullWords.length + "个单词";
   }
