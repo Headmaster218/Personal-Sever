@@ -38,22 +38,28 @@ app.config['SESSION_TYPE'] = 'filesystem'  # Session 存储方式
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24 ) # Session 的有效期
 Session(app)
 
-with open('data/VIP_USERS.json', 'r') as f:
-    file_data = f.read()
-    VIP_USERS = json.loads(file_data)
+def load_json_file(file_path, default_data):
+    if not os.path.exists(file_path):
+        warning = f"Warning: {file_path} 不存在，已创建默认 JSON 文件"
+        app.logger.warning(warning)
+        print(warning)
+        directory = os.path.dirname(file_path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(default_data, f, ensure_ascii=False)
+        return default_data.copy() if isinstance(default_data, dict) else default_data
 
-with open('data/USERS.json', 'r') as f:
-    file_data = f.read()
-    USERS = json.loads(file_data)
+    with open(file_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+VIP_USERS = load_json_file('data/VIP_USERS.json', {})
+USERS = load_json_file('data/USERS.json', {})
 
 # 图片点赞信息存储在字典中[喜，踩，错]
-with open('data/likes/Npic.json', 'r') as f:   # 打开一个JSON数据文件
-    file_data = f.read()                     # 读取文件内容
-    Npic_imgs_dict = json.loads(file_data)   # 将JSON格式数据解析为Python对象
-
-with open('data/likes/pic.json', 'r') as f:   # 打开一个JSON数据文件
-    file_data = f.read()                     # 读取文件内容
-    pic_imgs_dict = json.loads(file_data)   # 将JSON格式数据解析为Python对象
+Npic_imgs_dict = load_json_file('data/likes/Npic.json', {})
+pic_imgs_dict = load_json_file('data/likes/pic.json', {})
 pic_dict_op_times = 0
 Npic_dict_op_times = 0
 
@@ -317,5 +323,6 @@ def toefl(subpath):
 
 
 if __name__ == '__main__':
-    context = ('data\pem\cert.pem', 'data\pem\key.pem')
-    app.run(host=socket.getaddrinfo('wzh1615.top', None, socket.AF_INET6)[0][4][0], port=443, ssl_context=context)
+    context = ('data\\pem\\cert.pem', 'data\\pem\\key.pem')
+    # app.run(host=socket.getaddrinfo('wzh25.top', None, socket.AF_INET6)[0][4][0], port=443, ssl_context=context)
+    app.run(host='0.0.0.0', port=443, ssl_context=context)

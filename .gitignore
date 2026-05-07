@@ -1,9 +1,8 @@
- flask_session/
- _pycache_/
+flask_session/
+
+__pycache__
  
 static/
-
-flask_session/
 
 upload/
 

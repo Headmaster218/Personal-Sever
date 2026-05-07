@@ -73,6 +73,63 @@
       /* 禁止调整大小 */
     }
 
+    #textWrapper {
+      position: relative;
+      width: 100%;
+      height: 60vh;
+    }
+
+    #textDisplay,
+    #textInput {
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1em;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow: auto;
+    }
+
+    #textDisplay {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: none;
+      color: #222;
+      background: #fff;
+      user-select: text;
+    }
+
+    #textInput {
+      position: relative;
+      z-index: 2;
+      color: #222;
+      caret-color: #222;
+      background: #fff;
+      resize: none;
+    }
+
+    #textWrapper.reviewing #textDisplay {
+      display: block;
+    }
+
+    #textWrapper.reviewing #textInput {
+      display: none;
+    }
+
+    #textInput::placeholder {
+      color: #666;
+    }
+
+    .highlight-word {
+      background-color: #ffe45c;
+      color: #111;
+    }
+
 
     .avatar {
       width: 100px;
@@ -226,10 +283,10 @@
     </div>
 
     <!-- <textarea placeholder="在此输入自定义文章或显示选择的文章"></textarea> -->
-    <div id="textWrapper" style="position: relative;">
-      <div id="textDisplay" style="white-space: pre-wrap; word-wrap: break-word; padding: 8px; overflow: hidden; position: absolute; z-index: 1;"></div>
-      <textarea id="textInput" style="white-space: pre-wrap; word-wrap: break-word; padding: 8px; background: transparent; color: transparent; position: relative; z-index: 2;"></textarea>
-  </div>
+    <div id="textWrapper">
+      <div id="textDisplay"></div>
+      <textarea id="textInput" placeholder="请选择文章，或选择自定义后粘贴文章"></textarea>
+    </div>
   
   
     <center> <button onclick="start_sorter()" class="button-blue">选择文章后，开始！</button> </center>
@@ -240,10 +297,60 @@
 <script>
   var username = "{{ session.get('username') or 'null' }}"; // 如果用户未登录，设置为JavaScript的null
 
+  function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, function (char) {
+      return {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char];
+    });
+  }
+
+  function renderArticleText(highlightWordText = '') {
+    const textInput = document.getElementById('textInput');
+    const textDisplay = document.getElementById('textDisplay');
+    let html = escapeHtml(textInput.value);
+
+    if (highlightWordText) {
+      const escapedWord = highlightWordText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b(${escapedWord})\\b`, 'gi');
+      html = html.replace(regex, '<span class="highlight-word">$1</span>');
+    }
+
+    textDisplay.innerHTML = html;
+    textDisplay.scrollTop = textInput.scrollTop;
+    textDisplay.scrollLeft = textInput.scrollLeft;
+  }
+
+  function setArticleText(text) {
+    const textInput = document.getElementById('textInput');
+    document.getElementById('textWrapper').classList.remove('reviewing');
+    textInput.value = text;
+    renderArticleText();
+  }
+
+  function setReviewMode(enabled) {
+    document.getElementById('textWrapper').classList.toggle('reviewing', enabled);
+    renderArticleText();
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     const typeSelect = document.getElementById('typeSelect');
     const articleSelect = document.getElementById('articleSelect');
-    const textarea = document.querySelector('textarea');
+    const textarea = document.getElementById('textInput');
+
+    textarea.addEventListener('input', function () {
+      renderArticleText();
+    });
+
+    textarea.addEventListener('scroll', function () {
+      const textDisplay = document.getElementById('textDisplay');
+      textDisplay.scrollTop = textarea.scrollTop;
+      textDisplay.scrollLeft = textarea.scrollLeft;
+    });
 
     // 假设这是从服务器获取的用户登录状态
     var userInfoElement = document.getElementById('user-info');
@@ -259,11 +366,13 @@
 
 
 
-    // 监听类型选择的变化
+      // 监听类型选择的变化
     typeSelect.addEventListener('change', function () {
       if (this.value == "custom") {
         articleSelect.innerHTML = '';
-        textarea.value = '请输入自己的文章，可以粘贴';
+        textarea.placeholder = '请输入自己的文章，可以粘贴';
+        setArticleText('');
+        textarea.focus();
         return;
       }
 
@@ -280,7 +389,8 @@
         .then(data => {
           // 清空文章选择下拉框
           articleSelect.innerHTML = '';
-          textarea.value = '请选择文章';
+          textarea.placeholder = '请选择文章';
+          setArticleText('');
           // 填充文章选择下拉框
           data.forEach(article => {
             const option = document.createElement('option');
@@ -299,7 +409,7 @@
         .then(response => response.text())
         .then(data => {
           // 更新文本框内容
-          textarea.value = data;
+          setArticleText(data);
         })
         .catch(error => console.error('Error:', error));
     });
@@ -313,7 +423,11 @@
       alert("请先登录");
       return;
     }
-    var text = document.querySelector('textarea').value;
+    var text = document.getElementById('textInput').value.trim();
+    if (!text) {
+      alert("请先选择文章，或输入自定义文章。");
+      return;
+    }
     // 发送 POST 请求到服务器
     fetch('/word/start', {
       method: 'POST', // 指定请求方法为 POST
@@ -327,8 +441,10 @@
         // 服务器返回的数据结构是 { new_words: [...] }
         fullWords = data.new_words; // 注意这里要访问 data.new_words 而不是直接使用 data
         if (fullWords.length > 0) {
+          setReviewMode(true);
           displayNextWord();
         } else {
+          setReviewMode(false);
           alert("没有新单词。");
         }
       })
@@ -339,19 +455,7 @@
   }
 
   function highlightWord(word) {
-    var textInput = document.getElementById('textInput');
-    var textDisplay = document.getElementById('textDisplay');
-
-    // 转义特殊字符以避免 XSS 攻击
-    var escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    // 使用正则表达式替换所有匹配的单词
-    var highlightedText = textInput.value.replace(new RegExp(escapedWord, 'gi'), function(match) {
-        return '<span style="background-color: yellow;">' + match + '</span>';
-    });
-
-    // 更新显示区域的 HTML
-    textDisplay.innerHTML = highlightedText;
+    renderArticleText(word);
 }
 
 
@@ -363,7 +467,7 @@
       highlightWord(word);
     } else {
       document.querySelector('.word-display').textContent = "所有单词已分类完毕！";
-      document.getElementById('textDisplay').innerHTML = '';
+      renderArticleText();
     }
     document.getElementById('remain-number').innerHTML = "还剩下" + fullWords.length + "个单词";
   }
@@ -386,6 +490,9 @@
   // 处理单词的函数，发送用户的认识或不认识的反馈到服务器
   function handleWord(recognized) {
     const word = fullWords[currentWordIndex];
+    if (!word) {
+      return;
+    }
     document.querySelector('.definition-display').textContent = '此处将显示释义';
     fetch('/word/handle', {
       method: 'POST',
