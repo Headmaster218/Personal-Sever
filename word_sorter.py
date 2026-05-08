@@ -2,6 +2,7 @@ import json
 import os
 import re
 import sqlite3
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 import requests
@@ -13,6 +14,21 @@ from nltk.tokenize import word_tokenize
 
 MEANINGS_CACHE_PATH = os.path.join('data', 'meanings.json')
 ECDICT_DB_PATH = os.path.join('data', 'ecdict.db')
+PERIOD_OPTIONS = [
+    ('day', '一天'),
+    ('week', '一周'),
+    ('month', '一月'),
+    ('half_year', '半年'),
+    ('year', '一年'),
+    ('all', '从头到现在'),
+]
+PERIOD_DAYS = {
+    'day': 1,
+    'week': 7,
+    'month': 30,
+    'half_year': 183,
+    'year': 365,
+}
 
 
 def get_user_word_paths(user_name):
@@ -23,6 +39,77 @@ def get_user_word_paths(user_name):
         'unknown': os.path.join(base_path, 'unknown_words.txt'),
         'events': os.path.join(base_path, 'word_events.jsonl'),
     }
+
+
+def get_period_options():
+    return [{'value': value, 'label': label} for value, label in PERIOD_OPTIONS]
+
+
+def get_period_days(period):
+    return PERIOD_DAYS.get(period)
+
+
+def parse_anchor_date(anchor_date=None):
+    if anchor_date:
+        try:
+            return datetime.strptime(anchor_date, '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            pass
+    return datetime.now().date()
+
+
+def get_period_range(period, anchor_date=None):
+    anchor = parse_anchor_date(anchor_date)
+    if period == 'day':
+        return anchor, anchor
+    if period == 'week':
+        start = anchor - timedelta(days=anchor.weekday())
+        return start, start + timedelta(days=6)
+    if period == 'month':
+        start = anchor.replace(day=1)
+        if start.month == 12:
+            end = start.replace(year=start.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            end = start.replace(month=start.month + 1, day=1) - timedelta(days=1)
+        return start, end
+    if period == 'half_year':
+        if anchor.month <= 6:
+            return anchor.replace(month=1, day=1), anchor.replace(month=6, day=30)
+        return anchor.replace(month=7, day=1), anchor.replace(month=12, day=31)
+    if period == 'year':
+        return anchor.replace(month=1, day=1), anchor.replace(month=12, day=31)
+    return None, None
+
+
+def format_period_range(period, anchor_date=None):
+    start, end = get_period_range(period, anchor_date)
+    if not start or not end:
+        return '全部记录'
+    if start == end:
+        return start.strftime('%Y-%m-%d')
+    return f"{start.strftime('%Y-%m-%d')} 至 {end.strftime('%Y-%m-%d')}"
+
+
+def parse_event_date(event):
+    date_text = event.get('date')
+    if not date_text:
+        timestamp = event.get('timestamp', '')
+        date_text = timestamp[:10]
+    try:
+        return datetime.strptime(date_text, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        return None
+
+
+def filter_events_by_period(events, period, anchor_date=None):
+    start_date, end_date = get_period_range(period, anchor_date)
+    if not start_date or not end_date:
+        return events
+
+    return [
+        event for event in events
+        if start_date <= (parse_event_date(event) or datetime.min.date()) <= end_date
+    ]
 
 
 def load_meanings():
@@ -218,30 +305,74 @@ def load_word_events(user_name):
     return events
 
 
-def get_word_list(user_name):
+def get_word_status_from_events(events):
+    status_by_word = {}
+    for event in events:
+        word = (event.get('word') or '').strip().lower()
+        if not word:
+            continue
+        status_by_word[word] = bool(event.get('recognized'))
+    return status_by_word
+
+
+def get_word_list(user_name, period='all', anchor_date=None):
     paths = get_user_word_paths(user_name)
-    known_words = sorted(load_word_set(paths['known']))
-    unknown_words = sorted(load_word_set(paths['unknown']))
+    if period == 'all':
+        known_words = sorted(load_word_set(paths['known']))
+        unknown_words = sorted(load_word_set(paths['unknown']))
+    else:
+        events = filter_events_by_period(load_word_events(user_name), period, anchor_date)
+        status_by_word = get_word_status_from_events(events)
+        known_words = sorted(word for word, recognized in status_by_word.items() if recognized)
+        unknown_words = sorted(word for word, recognized in status_by_word.items() if not recognized)
+
     return {
         'known_words': known_words,
         'unknown_words': unknown_words,
     }
 
 
-def get_word_stats(user_name, days=14):
-    word_list = get_word_list(user_name)
-    events = load_word_events(user_name)
-    today = datetime.now().date()
-    date_labels = [(today - timedelta(days=offset)).strftime('%Y-%m-%d') for offset in range(days - 1, -1, -1)]
-    daily = {date: {'date': date, 'known': 0, 'unknown': 0, 'total': 0} for date in date_labels}
+def build_daily_stats(events, period='all', anchor_date=None):
+    daily = defaultdict(lambda: {'known': 0, 'unknown': 0, 'total': 0})
+    start, end = get_period_range(period, anchor_date)
+    if start and end:
+        days = (end - start).days + 1
+        for offset in range(days):
+            date = (start + timedelta(days=offset)).strftime('%Y-%m-%d')
+            daily[date]['date'] = date
 
     for event in events:
-        date = event.get('date')
-        if date not in daily:
+        event_date = parse_event_date(event)
+        if not event_date:
             continue
-        key = 'known' if event.get('recognized') else 'unknown'
-        daily[date][key] += 1
-        daily[date]['total'] += 1
+        key = event_date.strftime('%Y-%m-%d')
+        bucket = daily[key]
+        bucket['date'] = key
+        if event.get('recognized'):
+            bucket['known'] += 1
+        else:
+            bucket['unknown'] += 1
+        bucket['total'] += 1
+    return [daily[date] for date in sorted(daily)]
+
+
+def build_empty_daily_stats(period, anchor_date=None):
+    start, end = get_period_range(period, anchor_date)
+    if not start or not end:
+        return []
+    days = (end - start).days + 1
+    date_labels = [(start + timedelta(days=offset)).strftime('%Y-%m-%d') for offset in range(days)]
+    return [{'date': date, 'known': 0, 'unknown': 0, 'total': 0} for date in date_labels]
+
+
+def get_word_stats(user_name, period='week', anchor_date=None):
+    anchor = parse_anchor_date(anchor_date).strftime('%Y-%m-%d')
+    all_events = load_word_events(user_name)
+    events = filter_events_by_period(all_events, period, anchor)
+    word_list = get_word_list(user_name, period, anchor)
+    daily = build_daily_stats(events, period, anchor)
+    if not daily:
+        daily = build_empty_daily_stats(period, anchor)
 
     unique_words = {event.get('word') for event in events if event.get('word')}
     return {
@@ -249,7 +380,11 @@ def get_word_stats(user_name, days=14):
         'unknown_count': len(word_list['unknown_words']),
         'unique_count': len(unique_words),
         'event_count': len(events),
-        'daily': [daily[date] for date in date_labels],
+        'daily': daily,
+        'period': period,
+        'anchor_date': anchor,
+        'range_label': format_period_range(period, anchor),
+        'period_options': get_period_options(),
         **word_list,
     }
 

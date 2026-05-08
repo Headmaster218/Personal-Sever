@@ -15,7 +15,7 @@
     }
 
     .page {
-      max-width: 1080px;
+      max-width: 1180px;
       margin: 0 auto;
       padding: 28px;
     }
@@ -24,6 +24,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 16px;
       margin-bottom: 22px;
     }
 
@@ -37,17 +38,59 @@
       font-weight: bold;
     }
 
-    .columns {
+    .layout {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 250px 1fr;
       gap: 18px;
     }
 
+    .filters,
     .panel {
       background: #fff;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       padding: 18px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+
+    .filters h2 {
+      margin: 0 0 14px;
+      font-size: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 14px;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    select,
+    input[type="date"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #fff;
+      color: #1f2937;
+      font-size: 14px;
+    }
+
+    .range {
+      padding: 10px;
+      border-radius: 6px;
+      background: #f8fafc;
+      color: #475569;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
     }
 
     .panel h2 {
@@ -64,10 +107,14 @@
     }
 
     .word {
+      position: relative;
       padding: 6px 10px;
+      border: none;
       border-radius: 999px;
       background: #f1f5f9;
+      font: inherit;
       font-size: 14px;
+      cursor: default;
     }
 
     .known .word {
@@ -84,9 +131,30 @@
       color: #64748b;
     }
 
-    @media (max-width: 760px) {
+    .tooltip {
+      position: fixed;
+      z-index: 10;
+      display: none;
+      max-width: 360px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.94);
+      color: #fff;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.24);
+      pointer-events: none;
+    }
+
+    @media (max-width: 900px) {
+      .layout,
       .columns {
         grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
       }
     }
   </style>
@@ -99,34 +167,137 @@
       <a href="/word">返回背单词主页</a>
     </div>
 
-    <section class="columns">
-      <div class="panel known">
-        <h2><span>会的单词</span><span>{{ stats.known_count }}</span></h2>
-        {% if stats.known_words %}
-        <div class="word-grid">
-          {% for word in stats.known_words %}
-          <span class="word">{{ word }}</span>
-          {% endfor %}
-        </div>
-        {% else %}
-        <p class="empty">还没有标记为会的单词。</p>
-        {% endif %}
-      </div>
+    <section class="layout">
+      <aside class="filters">
+        <h2>周期管理</h2>
+        <form id="periodForm" method="get" action="/word/list">
+          <label class="field">
+            周期
+            <select id="period" name="period">
+              {% for option in stats.period_options %}
+              <option value="{{ option.value }}" {% if option.value == stats.period %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
 
-      <div class="panel unknown">
-        <h2><span>不会的单词</span><span>{{ stats.unknown_count }}</span></h2>
-        {% if stats.unknown_words %}
-        <div class="word-grid">
-          {% for word in stats.unknown_words %}
-          <span class="word">{{ word }}</span>
-          {% endfor %}
+          <label class="field" id="anchorField">
+            选择日期
+            <input id="anchorDate" type="date" name="anchor_date" value="{{ stats.anchor_date }}">
+          </label>
+        </form>
+        <div class="range">
+          当前范围：<br>{{ stats.range_label }}
         </div>
-        {% else %}
-        <p class="empty">还没有标记为不会的单词。</p>
-        {% endif %}
+      </aside>
+
+      <div class="columns">
+        <div class="panel known">
+          <h2><span>会的单词</span><span>{{ stats.known_count }}</span></h2>
+          {% if stats.known_words %}
+          <div class="word-grid">
+            {% for word in stats.known_words %}
+            <button class="word" type="button" data-word="{{ word }}">{{ word }}</button>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="empty">这个周期里还没有标记为会的单词。</p>
+          {% endif %}
+        </div>
+
+        <div class="panel unknown">
+          <h2><span>不会的单词</span><span>{{ stats.unknown_count }}</span></h2>
+          {% if stats.unknown_words %}
+          <div class="word-grid">
+            {% for word in stats.unknown_words %}
+            <button class="word" type="button" data-word="{{ word }}">{{ word }}</button>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="empty">这个周期里还没有标记为不会的单词。</p>
+          {% endif %}
+        </div>
       </div>
     </section>
   </main>
+
+  <div id="meaningTooltip" class="tooltip"></div>
+
+  <script>
+    const periodForm = document.getElementById('periodForm');
+    const periodSelect = document.getElementById('period');
+    const anchorDate = document.getElementById('anchorDate');
+    const anchorField = document.getElementById('anchorField');
+    const tooltip = document.getElementById('meaningTooltip');
+    let activeWord = '';
+
+    function updateAnchorVisibility() {
+      anchorField.style.display = periodSelect.value === 'all' ? 'none' : 'grid';
+    }
+
+    periodSelect.addEventListener('change', function () {
+      updateAnchorVisibility();
+      periodForm.submit();
+    });
+
+    anchorDate.addEventListener('change', function () {
+      periodForm.submit();
+    });
+
+    updateAnchorVisibility();
+
+    function cacheKey(word) {
+      return `wordMeaning:${word.toLowerCase()}`;
+    }
+
+    function setTooltipText(text) {
+      tooltip.textContent = text;
+    }
+
+    function moveTooltip(event) {
+      tooltip.style.left = `${Math.min(event.clientX + 14, window.innerWidth - 380)}px`;
+      tooltip.style.top = `${event.clientY + 16}px`;
+    }
+
+    function showTooltip(event, word) {
+      activeWord = word;
+      tooltip.style.display = 'block';
+      setTooltipText('查询释义中...');
+      moveTooltip(event);
+
+      const cached = localStorage.getItem(cacheKey(word));
+      if (cached) {
+        setTooltipText(cached);
+        return;
+      }
+
+      fetch(`/word/meaning?word=${encodeURIComponent(word)}`)
+        .then(response => response.json())
+        .then(data => {
+          if (activeWord !== word) {
+            return;
+          }
+          const meaning = data.meaning || data.error || '未找到释义';
+          localStorage.setItem(cacheKey(word), meaning);
+          setTooltipText(meaning);
+        })
+        .catch(() => {
+          if (activeWord === word) {
+            setTooltipText('释义查询失败');
+          }
+        });
+    }
+
+    document.querySelectorAll('.word').forEach(button => {
+      button.addEventListener('mouseenter', event => {
+        showTooltip(event, button.dataset.word);
+      });
+      button.addEventListener('mousemove', moveTooltip);
+      button.addEventListener('mouseleave', () => {
+        activeWord = '';
+        tooltip.style.display = 'none';
+      });
+    });
+  </script>
 </body>
 
 </html>

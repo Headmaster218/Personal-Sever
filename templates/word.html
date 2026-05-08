@@ -20,22 +20,50 @@
       padding: 28px;
     }
 
-    .topbar {
+    .topbar,
+    .panel-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 24px;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    h1,
+    h2 {
+      margin: 0;
     }
 
     h1 {
-      margin: 0;
       font-size: 30px;
+    }
+
+    h2 {
+      font-size: 20px;
     }
 
     .home-link {
       color: #2563eb;
       text-decoration: none;
       font-weight: bold;
+    }
+
+    .period-form {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    select,
+    input[type="date"] {
+      padding: 7px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #fff;
+      color: #1f2937;
     }
 
     .stats {
@@ -75,17 +103,30 @@
     }
 
     .panel {
+      position: relative;
       padding: 18px;
     }
 
-    .panel h2 {
-      margin: 0 0 14px;
-      font-size: 20px;
+    .chart-wrap {
+      position: relative;
     }
 
     canvas {
       width: 100%;
-      height: 300px;
+      height: 340px;
+    }
+
+    .tooltip {
+      position: absolute;
+      display: none;
+      padding: 7px 9px;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.92);
+      color: #fff;
+      font-size: 13px;
+      pointer-events: none;
+      white-space: nowrap;
+      transform: translate(-50%, -120%);
     }
 
     .entries {
@@ -110,7 +151,8 @@
       font-size: 18px;
     }
 
-    .entry span {
+    .entry span,
+    .legend {
       color: #64748b;
       font-size: 14px;
     }
@@ -118,8 +160,13 @@
     .legend {
       display: flex;
       gap: 14px;
+      margin-bottom: 8px;
+    }
+
+    .range {
       color: #64748b;
       font-size: 14px;
+      margin-bottom: 10px;
     }
 
     .dot {
@@ -143,6 +190,12 @@
       .layout {
         grid-template-columns: 1fr;
       }
+
+      .topbar,
+      .panel-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -156,31 +209,47 @@
 
     <section class="stats">
       <div class="stat-card">
-        <p>已浏览单词</p>
+        <p>本周期浏览单词</p>
         <strong>{{ stats.unique_count }}</strong>
       </div>
       <div class="stat-card">
-        <p>分类次数</p>
+        <p>本周期分类次数</p>
         <strong>{{ stats.event_count }}</strong>
       </div>
       <div class="stat-card">
-        <p>会的单词</p>
+        <p>本周期会的单词</p>
         <strong>{{ stats.known_count }}</strong>
       </div>
       <div class="stat-card">
-        <p>不会的单词</p>
+        <p>本周期不会的单词</p>
         <strong>{{ stats.unknown_count }}</strong>
       </div>
     </section>
 
     <section class="layout">
       <div class="panel">
-        <h2>最近筛选记录</h2>
+        <div class="panel-head">
+          <h2>筛选记录</h2>
+          <form class="period-form" method="get" action="/word">
+            <label for="period">周期</label>
+            <select id="period" name="period" onchange="this.form.submit()">
+              {% for option in stats.period_options %}
+              <option value="{{ option.value }}" {% if option.value == stats.period %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+            <label id="anchorLabel" for="anchorDate">日期</label>
+            <input id="anchorDate" type="date" name="anchor_date" value="{{ stats.anchor_date }}" onchange="this.form.submit()">
+          </form>
+        </div>
+        <div class="range">当前范围：{{ stats.range_label }}</div>
         <div class="legend">
           <span><i class="dot green"></i>会</span>
           <span><i class="dot red"></i>不会</span>
         </div>
-        <canvas id="dailyChart" width="760" height="300"></canvas>
+        <div class="chart-wrap">
+          <canvas id="dailyChart" width="760" height="340"></canvas>
+          <div id="chartTooltip" class="tooltip"></div>
+        </div>
       </div>
 
       <div class="entries">
@@ -204,44 +273,124 @@
     const dailyData = {{ stats.daily | tojson }};
     const canvas = document.getElementById('dailyChart');
     const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('chartTooltip');
+    const periodSelect = document.getElementById('period');
+    const anchorDate = document.getElementById('anchorDate');
+    const anchorLabel = document.getElementById('anchorLabel');
+    let hoverTargets = [];
+
+    function updateAnchorVisibility() {
+      const hidden = periodSelect.value === 'all';
+      anchorDate.style.display = hidden ? 'none' : 'inline-block';
+      anchorLabel.style.display = hidden ? 'none' : 'inline-block';
+    }
+
+    function niceMax(value) {
+      if (value <= 5) return 5;
+      const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+      return Math.ceil(value / magnitude) * magnitude;
+    }
 
     function drawChart() {
       const width = canvas.width;
       const height = canvas.height;
-      const padding = 34;
-      const chartHeight = height - padding * 2;
-      const chartWidth = width - padding * 2;
-      const maxValue = Math.max(1, ...dailyData.map(item => item.known + item.unknown));
-      const groupWidth = chartWidth / dailyData.length;
-      const barWidth = Math.min(18, groupWidth / 3);
+      const paddingLeft = 48;
+      const paddingRight = 16;
+      const paddingTop = 24;
+      const paddingBottom = 42;
+      const chartHeight = height - paddingTop - paddingBottom;
+      const chartWidth = width - paddingLeft - paddingRight;
+      const maxValue = niceMax(Math.max(1, ...dailyData.map(item => item.known + item.unknown)));
+      const groupWidth = chartWidth / Math.max(1, dailyData.length);
+      const barWidth = Math.max(4, Math.min(18, groupWidth / 3));
+      const baseY = height - paddingBottom;
+      hoverTargets = [];
 
       ctx.clearRect(0, 0, width, height);
       ctx.strokeStyle = '#dbe3ef';
-      ctx.lineWidth = 1;
+      ctx.fillStyle = '#64748b';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      for (let tick = 0; tick <= 5; tick += 1) {
+        const value = Math.round(maxValue / 5 * tick);
+        const y = baseY - value / maxValue * chartHeight;
+        ctx.beginPath();
+        ctx.moveTo(paddingLeft, y);
+        ctx.lineTo(width - paddingRight, y);
+        ctx.stroke();
+        ctx.fillText(value, paddingLeft - 8, y);
+      }
+
+      ctx.strokeStyle = '#94a3b8';
       ctx.beginPath();
-      ctx.moveTo(padding, padding);
-      ctx.lineTo(padding, height - padding);
-      ctx.lineTo(width - padding, height - padding);
+      ctx.moveTo(paddingLeft, paddingTop);
+      ctx.lineTo(paddingLeft, baseY);
+      ctx.lineTo(width - paddingRight, baseY);
       ctx.stroke();
 
       dailyData.forEach((item, index) => {
-        const x = padding + index * groupWidth + groupWidth / 2;
-        const knownHeight = item.known / maxValue * chartHeight;
-        const unknownHeight = item.unknown / maxValue * chartHeight;
-        const baseY = height - padding;
+        const x = paddingLeft + index * groupWidth + groupWidth / 2;
+        const bars = [
+          { key: 'known', label: '会', value: item.known, color: '#22c55e', x: x - barWidth - 2 },
+          { key: 'unknown', label: '不会', value: item.unknown, color: '#ef4444', x: x + 2 },
+        ];
 
-        ctx.fillStyle = '#22c55e';
-        ctx.fillRect(x - barWidth - 2, baseY - knownHeight, barWidth, knownHeight);
-        ctx.fillStyle = '#ef4444';
-        ctx.fillRect(x + 2, baseY - unknownHeight, barWidth, unknownHeight);
+        bars.forEach(bar => {
+          const barHeight = bar.value / maxValue * chartHeight;
+          const y = baseY - barHeight;
+          ctx.fillStyle = bar.color;
+          ctx.fillRect(bar.x, y, barWidth, barHeight);
+          hoverTargets.push({
+            x: bar.x,
+            y: y,
+            width: barWidth,
+            height: Math.max(2, barHeight),
+            date: item.date,
+            label: bar.label,
+            value: bar.value,
+          });
+        });
 
-        ctx.fillStyle = '#64748b';
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(item.date.slice(5), x, height - 10);
+        if (dailyData.length <= 31 || index % Math.ceil(dailyData.length / 12) === 0) {
+          ctx.fillStyle = '#64748b';
+          ctx.font = '11px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(item.date.slice(5), x, baseY + 10);
+        }
       });
     }
 
+    function showTooltip(event) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (event.clientX - rect.left) * scaleX;
+      const y = (event.clientY - rect.top) * scaleY;
+      const target = hoverTargets.find(item =>
+        x >= item.x && x <= item.x + item.width &&
+        y >= item.y && y <= item.y + item.height
+      );
+
+      if (!target) {
+        tooltip.style.display = 'none';
+        return;
+      }
+
+      tooltip.textContent = `${target.date} ${target.label}: ${target.value}`;
+      tooltip.style.display = 'block';
+      tooltip.style.left = `${event.clientX - rect.left}px`;
+      tooltip.style.top = `${event.clientY - rect.top}px`;
+    }
+
+    canvas.addEventListener('mousemove', showTooltip);
+    canvas.addEventListener('mouseleave', function () {
+      tooltip.style.display = 'none';
+    });
+
+    updateAnchorVisibility();
     drawChart();
   </script>
 </body>

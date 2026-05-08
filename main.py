@@ -248,7 +248,9 @@ def word():
     user_name = session.get('username')
     if not user_name:
         return render_template('login.html')
-    stats = ws.get_word_stats(user_name)
+    period = request.args.get('period', 'week')
+    anchor_date = request.args.get('anchor_date')
+    stats = ws.get_word_stats(user_name, period, anchor_date)
     return render_template("word.html", stats=stats)
 
 @app.route("/word/sort", methods=['GET'])
@@ -260,8 +262,32 @@ def word_list():
     user_name = session.get('username')
     if not user_name:
         return render_template('login.html')
-    stats = ws.get_word_stats(user_name)
-    return render_template("word_list.html", stats=stats)
+    period = request.args.get('period', 'week')
+    anchor_date = request.args.get('anchor_date')
+    anchor = ws.parse_anchor_date(anchor_date).strftime('%Y-%m-%d')
+    word_list = ws.get_word_list(user_name, period, anchor)
+    return render_template(
+        "word_list.html",
+        stats={
+            **word_list,
+            'known_count': len(word_list['known_words']),
+            'unknown_count': len(word_list['unknown_words']),
+            'period': period,
+            'anchor_date': anchor,
+            'range_label': ws.format_period_range(period, anchor),
+            'period_options': ws.get_period_options(),
+        },
+    )
+
+@app.route("/word/meaning", methods=['GET'])
+def word_meaning():
+    user_name = session.get('username')
+    if not user_name:
+        return jsonify({'error': 'User not logged in'}), 401
+    word = request.args.get('word', '').strip()
+    if not word:
+        return jsonify({'error': 'Missing word'}), 400
+    return jsonify({'word': word, 'meaning': ws.extract_meaning(word)})
 
 @app.route("/word/review", methods=['GET'])
 def word_review():
