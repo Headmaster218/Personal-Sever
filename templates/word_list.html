@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>单词表</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      color: #1f2937;
+      background: #f5f7fb;
+    }
+
+    .page {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0;
+    }
+
+    a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 20px;
+    }
+
+    .word-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .word {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      font-size: 14px;
+    }
+
+    .known .word {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .unknown .word {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .empty {
+      color: #64748b;
+    }
+
+    @media (max-width: 760px) {
+      .columns {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <div class="topbar">
+      <h1>单词表</h1>
+      <a href="/word">返回背单词主页</a>
+    </div>
+
+    <section class="columns">
+      <div class="panel known">
+        <h2><span>会的单词</span><span>{{ stats.known_count }}</span></h2>
+        {% if stats.known_words %}
+        <div class="word-grid">
+          {% for word in stats.known_words %}
+          <span class="word">{{ word }}</span>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty">还没有标记为会的单词。</p>
+        {% endif %}
+      </div>
+
+      <div class="panel unknown">
+        <h2><span>不会的单词</span><span>{{ stats.unknown_count }}</span></h2>
+        {% if stats.unknown_words %}
+        <div class="word-grid">
+          {% for word in stats.unknown_words %}
+          <span class="word">{{ word }}</span>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty">还没有标记为不会的单词。</p>
+        {% endif %}
+      </div>
+    </section>
+  </main>
+</body>
+
+</html>

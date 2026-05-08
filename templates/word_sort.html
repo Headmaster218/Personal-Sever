@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>筛选文章单词</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      color: #1f2937;
+      background: #f5f7fb;
+    }
+
+    .sidebar {
+      padding: 22px;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+    }
+
+    .content {
+      padding: 22px;
+    }
+
+    .top-link {
+      color: #2563eb;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .user-row {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 22px;
+    }
+
+    .avatar img {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .word-display,
+    .definition-display {
+      min-height: 24px;
+      margin-bottom: 14px;
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #f8fafc;
+      white-space: pre-wrap;
+    }
+
+    .word-display {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    button {
+      width: 100%;
+      margin: 6px 0;
+      padding: 12px 18px;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .button-green {
+      background-color: #16a34a;
+    }
+
+    .button-red {
+      background-color: #dc2626;
+    }
+
+    .button-blue {
+      background-color: #2563eb;
+    }
+
+    .button-yellow {
+      background-color: #ca8a04;
+    }
+
+    .dropdowns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    select {
+      padding: 9px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 15px;
+    }
+
+    #textWrapper {
+      position: relative;
+      width: 100%;
+      height: 68vh;
+    }
+
+    #textDisplay,
+    #textInput {
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 16px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow: auto;
+    }
+
+    #textDisplay {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: none;
+      color: #111827;
+      background: #fff;
+      user-select: text;
+    }
+
+    #textInput {
+      position: relative;
+      z-index: 2;
+      color: #111827;
+      background: #fff;
+      resize: none;
+    }
+
+    #textWrapper.reviewing #textDisplay {
+      display: block;
+    }
+
+    #textWrapper.reviewing #textInput {
+      display: none;
+    }
+
+    .highlight-word {
+      background-color: #fde047;
+      color: #111827;
+    }
+
+    @media (max-width: 860px) {
+      body {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <aside class="sidebar">
+    <div class="user-row">
+      <div class="avatar">
+        <img src="/static/fight.jpg" alt="Avatar">
+      </div>
+      <div>
+        <div class="top-link" onclick="location.href='/word'">返回背单词主页</div>
+        <div id="remain-number">还剩下 0 个单词</div>
+        <div id="user-info">用户名</div>
+      </div>
+    </div>
+
+    <div class="word-display">Word</div>
+    <div class="definition-display">释义显示框</div>
+    <button onclick="handleWord(1)" class="button-green">认识，键盘左</button>
+    <button onclick="handleWord(0)" class="button-red">不认识，键盘右</button>
+    <button onclick="handleWord(2)" class="button-yellow">查询释义，键盘下</button>
+  </aside>
+
+  <main class="content">
+    <div class="dropdowns">
+      <select id="typeSelect">
+        <option value="" disabled selected>请选择文章类型</option>
+        <option value="listening">听力</option>
+        <option value="reading">阅读</option>
+        <option value="custom">自定义</option>
+      </select>
+
+      <select id="articleSelect">
+        <option value="" disabled selected>请选择章节</option>
+      </select>
+    </div>
+
+    <div id="textWrapper">
+      <div id="textDisplay"></div>
+      <textarea id="textInput" placeholder="请选择文章，或选择自定义后粘贴文章"></textarea>
+    </div>
+
+    <button onclick="startSorter()" class="button-blue">开始筛选</button>
+  </main>
+
+  <script>
+    const username = "{{ session.get('username') or 'null' }}";
+    let currentWordIndex = 0;
+    let fullWords = [];
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, function (char) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        }[char];
+      });
+    }
+
+    function renderArticleText(highlightWordText = '') {
+      const textInput = document.getElementById('textInput');
+      const textDisplay = document.getElementById('textDisplay');
+      let html = escapeHtml(textInput.value);
+
+      if (highlightWordText) {
+        const escapedWord = highlightWordText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b(${escapedWord})\\b`, 'gi');
+        html = html.replace(regex, '<span class="highlight-word">$1</span>');
+      }
+
+      textDisplay.innerHTML = html;
+      textDisplay.scrollTop = textInput.scrollTop;
+      textDisplay.scrollLeft = textInput.scrollLeft;
+    }
+
+    function setArticleText(text) {
+      const textInput = document.getElementById('textInput');
+      document.getElementById('textWrapper').classList.remove('reviewing');
+      textInput.value = text;
+      renderArticleText();
+    }
+
+    function setReviewMode(enabled) {
+      document.getElementById('textWrapper').classList.toggle('reviewing', enabled);
+      renderArticleText();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const typeSelect = document.getElementById('typeSelect');
+      const articleSelect = document.getElementById('articleSelect');
+      const textarea = document.getElementById('textInput');
+      const userInfoElement = document.getElementById('user-info');
+
+      userInfoElement.innerHTML = username !== 'null'
+        ? `<div>${username}，加油！</div>`
+        : `<span class="top-link" onclick="location.href='/'">点击登录</span>`;
+
+      textarea.addEventListener('input', function () {
+        renderArticleText();
+      });
+
+      textarea.addEventListener('scroll', function () {
+        const textDisplay = document.getElementById('textDisplay');
+        textDisplay.scrollTop = textarea.scrollTop;
+        textDisplay.scrollLeft = textarea.scrollLeft;
+      });
+
+      typeSelect.addEventListener('change', function () {
+        if (this.value === 'custom') {
+          articleSelect.innerHTML = '';
+          textarea.placeholder = '请输入自己的文章，可以粘贴';
+          setArticleText('');
+          textarea.focus();
+          return;
+        }
+
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '请选择文章';
+        defaultOption.disabled = true;
+        defaultOption.selected = true;
+
+        fetch(`/tofel/${this.value}`)
+          .then(response => response.json())
+          .then(data => {
+            articleSelect.innerHTML = '';
+            articleSelect.appendChild(defaultOption);
+            textarea.placeholder = '请选择文章';
+            setArticleText('');
+            data.forEach(article => {
+              const option = document.createElement('option');
+              option.value = article;
+              option.textContent = article;
+              articleSelect.appendChild(option);
+            });
+          })
+          .catch(error => console.error('Error:', error));
+      });
+
+      articleSelect.addEventListener('change', function () {
+        fetch(`/tofel/article/${typeSelect.value}/${this.value}`)
+          .then(response => response.text())
+          .then(data => setArticleText(data))
+          .catch(error => console.error('Error:', error));
+      });
+    });
+
+    function startSorter() {
+      if (username === 'null') {
+        alert('请先登录');
+        return;
+      }
+
+      const text = document.getElementById('textInput').value.trim();
+      if (!text) {
+        alert('请先选择文章，或输入自定义文章。');
+        return;
+      }
+
+      fetch('/word/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: text })
+      })
+        .then(response => response.json())
+        .then(data => {
+          fullWords = data.new_words || [];
+          currentWordIndex = 0;
+          if (fullWords.length > 0) {
+            setReviewMode(true);
+            displayNextWord();
+          } else {
+            setReviewMode(false);
+            alert('没有新单词。');
+          }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function displayNextWord() {
+      if (currentWordIndex < fullWords.length) {
+        const word = fullWords[currentWordIndex];
+        document.querySelector('.word-display').textContent = word;
+        renderArticleText(word);
+      } else {
+        document.querySelector('.word-display').textContent = '所有单词已分类完毕！';
+        document.querySelector('.definition-display').textContent = '释义显示框';
+        renderArticleText();
+      }
+      document.getElementById('remain-number').textContent = `还剩下 ${fullWords.length} 个单词`;
+    }
+
+    document.addEventListener('keydown', function (event) {
+      if (event.keyCode === 37) {
+        handleWord(1);
+      } else if (event.keyCode === 39) {
+        handleWord(0);
+      } else if (event.keyCode === 40) {
+        handleWord(2);
+      }
+    });
+
+    function handleWord(recognized) {
+      const word = fullWords[currentWordIndex];
+      if (!word) {
+        return;
+      }
+
+      document.querySelector('.definition-display').textContent = '此处将显示释义';
+      fetch('/word/handle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ word: word, recognized: recognized })
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success === 1) {
+            fullWords.splice(currentWordIndex, 1);
+            displayNextWord();
+          } else if (data.success === 2) {
+            document.querySelector('.definition-display').textContent = data.meaning;
+          } else {
+            alert(data.success || data.error);
+          }
+        })
+        .catch(error => console.error('请求失败', error));
+    }
+  </script>
+</body>
+
+</html>

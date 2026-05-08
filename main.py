@@ -245,7 +245,30 @@ def upload():
 # 背单词页面路由
 @app.route("/word", methods=['GET'])
 def word():
-        return render_template("word.html")
+    user_name = session.get('username')
+    if not user_name:
+        return render_template('login.html')
+    stats = ws.get_word_stats(user_name)
+    return render_template("word.html", stats=stats)
+
+@app.route("/word/sort", methods=['GET'])
+def word_sort():
+    return render_template("word_sort.html")
+
+@app.route("/word/list", methods=['GET'])
+def word_list():
+    user_name = session.get('username')
+    if not user_name:
+        return render_template('login.html')
+    stats = ws.get_word_stats(user_name)
+    return render_template("word_list.html", stats=stats)
+
+@app.route("/word/review", methods=['GET'])
+def word_review():
+    user_name = session.get('username')
+    if not user_name:
+        return render_template('login.html')
+    return render_template("word_review.html")
 
 #开始背单词
 @app.route("/word/start", methods=['GET', 'POST'])
@@ -255,16 +278,14 @@ def word_start():
         return render_template('login.html')
     data = request.json
     text = data['text']
-    base_path = os.path.join('.', 'data', 'user word', user_name)
-    known_words_path = os.path.join(base_path, 'known_words.txt')
-    unknown_words_path = os.path.join(base_path, 'unknown_words.txt')
+    paths = ws.get_user_word_paths(user_name)
+    known_words_path = paths['known']
+    unknown_words_path = paths['unknown']
     known_words = ws.load_word_set(known_words_path)
     unknown_words = ws.load_word_set(unknown_words_path)
     new_words = ws.process_text(text, known_words, unknown_words)
-    if session.get('known_words_path') == None:
-        session['known_words_path'] = known_words_path
-    if session.get('unknown_words_path') == None:
-        session['unknown_words_path'] = unknown_words_path
+    session['known_words_path'] = known_words_path
+    session['unknown_words_path'] = unknown_words_path
 
     return jsonify({'new_words': list(new_words)})
 
@@ -276,13 +297,18 @@ def handle_word():
     data = request.json
     word = data.get('word')
     recognized = data.get('recognized')
+    paths = ws.get_user_word_paths(user_name)
+    known_words_path = session.get('known_words_path') or paths['known']
+    unknown_words_path = session.get('unknown_words_path') or paths['unknown']
 
     if recognized == 0:
         # 未识别
-        ws.save_word(word, session.get('unknown_words_path'))
+        ws.save_word(word, unknown_words_path)
+        ws.record_word_result(user_name, word, False)
     elif recognized == 1:
         # 已识别
-        ws.save_word(word, session.get('known_words_path'))
+        ws.save_word(word, known_words_path)
+        ws.record_word_result(user_name, word, True)
     elif recognized ==2:
         means = ws.extract_meaning_from_kmf(word)
         return jsonify({'success': 2, 'meaning': means})
